@@ -92,7 +92,7 @@ const getMoreInfoCars = async () => {
   await getCARSFromXLSX();
 
   const browser = await puppeteer.launch({
-    headless: false,
+    // headless: false,
     args: ["--disable-notifications"],
   });
 
