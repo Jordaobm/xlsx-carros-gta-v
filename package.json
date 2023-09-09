@@ -10,5 +10,8 @@
     "exceljs": "^4.3.0",
     "fs": "^0.0.1-security",
     "puppeteer": "^21.0.3"
+  },
+  "scripts": {
+    "execute": "node index.js"
   }
 }
