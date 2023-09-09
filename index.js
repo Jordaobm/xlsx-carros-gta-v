@@ -1,11 +1,10 @@
-import { readdirSync } from "fs";
-import Excel from "exceljs";
 import axios from "axios";
-import puppeteer from "puppeteer";
+import Excel from "exceljs";
+import fs, { readdirSync } from "fs";
 import path from "path";
-import fs from "fs";
-import { fileURLToPath } from "url";
+import puppeteer from "puppeteer";
 import * as stream from "stream";
+import { fileURLToPath } from "url";
 import { promisify } from "util";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -14,8 +13,10 @@ const XLSX_DIR = "./xlsx";
 const XLSX_WORKSHEET_NAME = "carros";
 const CARS = [];
 const ALL_INFO_CARS = [];
+const SITE_URL = "https://gta.fandom.com/wiki/";
 
-// entrar encontrar o último arquivo xlsx gerado na pasta xlsx
+// Busca a última planilha gerada (necessário ter ao menos uma dentro da pasta. Se não houver,
+// copie o modelo para dentro da pasta e renomei-o para 1.xlsx).
 const getLastXLSX = () => {
   const filesNames = readdirSync(XLSX_DIR);
   let moreRecentFile = filesNames[0];
@@ -29,7 +30,7 @@ const getLastXLSX = () => {
   return `${XLSX_DIR}/${moreRecentFile}`;
 };
 
-// intera sobre o XLSX para obter a lista de carros dentro do XLSX
+// Itera sobre o XLSX para obter a lista de carros.
 const getCARSFromXLSX = async () => {
   const workbook = new Excel.Workbook();
   await workbook?.xlsx?.readFile(getLastXLSX());
@@ -58,9 +59,12 @@ const getCARSFromXLSX = async () => {
   });
 };
 
-// responsável por baixar a imagem dos carros
+// Função responsável pelo download das imagens conforme o path delas
 const downloadImage = async (imageUrl, vehicleName) => {
   if (!imageUrl) {
+    console.log(
+      `------------ NÃO ENCONTROU CAMINHO PARA BAIXAR A FOTO DE ${vehicleName} ------------`
+    );
     return "";
   }
   const localFilePath = path.join(__dirname, "images", `${vehicleName}.png`);
@@ -75,24 +79,22 @@ const downloadImage = async (imageUrl, vehicleName) => {
     responseType: "stream",
   })
     .then((response) => {
-      console.log("BAIXOU A FOTO DÊ", vehicleName);
+      console.log(`------------ BAIXOU A FOTO DE ${vehicleName} ------------`);
       response.data.pipe(writer);
       return finished(writer);
     })
-    .catch((error) => {
-      console.error("Error downloading image:", error);
-    });
+    .catch(() => {});
 
   return localFilePath;
 };
 
-// itera sobre o array original buscando mais informações dos carros e
+// Itera sobre o array original buscando mais informações dos carros e
 // cria um array secundário com os carros e suas informações adicionais
 const getMoreInfoCars = async () => {
   await getCARSFromXLSX();
 
   const browser = await puppeteer.launch({
-    // headless: false,
+    // headless: false, // Quando true mostra a ação no navegador.
     args: ["--disable-notifications"],
   });
 
@@ -108,7 +110,7 @@ const getMoreInfoCars = async () => {
 
     const queryString = encodeURIComponent(CARS[i]?.nome);
 
-    await page.goto(`https://gta.fandom.com/wiki/${queryString}`, {
+    await page.goto(`${SITE_URL}${queryString}`, {
       waitUntil: "load",
       timeout: 0,
     });
@@ -150,6 +152,8 @@ const getMoreInfoCars = async () => {
   return;
 };
 
+// Com o array novo de carros montado (com todas as informações necessárias), cria um novo XLSX na pasta /xlsx.
+// O nome do arquivo é o timestamp de quando ele foi gerado.
 const exportXLSXWithCARS = async () => {
   await getMoreInfoCars();
 
@@ -230,7 +234,7 @@ const exportXLSXWithCARS = async () => {
     }
   });
 
-  return workbook.xlsx.writeFile(`./xlsx/${new Date().getTime()}.xlsx`); //Change file name here or give
+  return workbook.xlsx.writeFile(`./xlsx/${new Date().getTime()}.xlsx`);
 };
 
 exportXLSXWithCARS();
